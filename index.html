@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Amulet scratchpad (multiverse edition)</title>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <script src="https://cdn.jsdelivr.net/gh/emn178/js-sha256/build/sha256.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      font-size: 13px;
+      font-family: monospace;
+      min-height: 100%;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+      color: #000;
+    }
+
+    main, header {
+      flex-grow: 0;
+      width: calc(65ch + 4rem);
+      max-width: 100%;
+      font-size: 1.5rem;
+      line-height: 2rem;
+      margin: 2rem auto 2rem auto;
+      padding: 0 2rem 0 2rem;
+    }
+
+    textarea {
+      width: 65ch;
+      max-width: 100%;
+      padding: 1ch;
+      min-height: 10rem;
+      margin: 0 0 .5rem 0;
+      font-family: monospace;
+      font-size: 1.5rem;
+      line-height: 2rem;
+    }
+
+    p {
+      font-size: 1.5rem;
+      line-height: 2rem;
+      margin: 0 0 2rem 0;
+      overflow-wrap: break-word;
+    }
+
+    .hash-original,
+    .bytes-original {
+      margin-top: 0;
+      margin-bottom: 0.5em;
+    }
+
+    span.lucky {
+      color: #0a0;
+    }
+
+    @media only screen and (max-width: 600px) {
+      html {
+        font-size: 11px;
+      }
+    }
+
+    .amulets:empty:before {
+      content: '> No amulets found yet.';
+    }
+
+    .amulet {
+      border-top: 1px solid lightgrey;
+      padding-top: 1em;
+    }
+
+    .amulet pre {
+      display: inline;
+    }
+
+    .amulet pre:hover {
+      background: #EEE;
+    }
+
+    .amulet-hash {
+      font-size: 0.8em;
+      margin-top: 0.5rem;
+      margin-bottom: 0;
+    }
+
+    .amulet-rarity {
+      margin-top: 0;
+      font-style: italic;
+    }
+
+    summary {
+      cursor: help;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <p>Amulet scratchpad (multiverse edition) </p>
+    <p><small>Adapted from <a href="https://text.bargains/scratchpad">Robin Sloan's scratchpad</a> by <a target="_blank" href="https://samnabi.com">Sam Nabi</a>. By using this app you agree not to create NFTs of the amulets you make here.</small></p>
+    <details>
+      <summary>About</summary>
+      
+      <br>
+
+      <p>Creating an amulet from scratch is no easy task. You might go through hundreds of versions of a poem, trying different variations of wording and capitalisation, before stumbling upon one that qualifies as an amulet.</p>
+
+      <p>We can use computers to help us generate amulets — feed a massive set of words into an algorithm and comb though the results to find one that's particularly poetic. But where's the fun in that?</p>
+
+      <p>This scratchpad attempts to strike a middle ground. As you write your poem, it will scan the multiverse for similar poems — these could use different capitalisation, or synonyms of the words you've written. The exact poem you wrote might not be an amulet, but a similar one could very well be.</p>
+
+      <p>If stumbling upon an amulet is like rolling dice, this scratchpad loads the dice in your favour.</p>
+
+      <p><em>This app uses the Merriam-Webster thesaurus API to find synonyms. If we hit the daily usage limit it likely won't work properly.</em></p>
+    </details>
+  </header>
+
+  <main>
+    <textarea class="original" placeholder="Type your poem here."></textarea>
+    <p class="hash-original"></p>
+    <p class="bytes-original"></p>
+    <p><small>Found <span class="count">0</span> similar poems in the multiverse.</small></p>
+
+    <p>
+      <label>
+        Minimum rarity:
+        <select class="rarities">
+          <option value="8888">8888 (common)</option>
+          <option value="88888">88888 (uncommon)</option>
+          <option value="888888">888888 (rare)</option>
+          <option value="8888888">8888888 (epic)</option>
+          <option value="88888888">88888888 (legendary)</option>
+          <option value="888888888">888888888 (mythic)</option>
+        </select>
+      </label>
+    </p>
+
+    <section class="amulets"></section>
+  </main>
+
+  <script type="text/javascript" charset="UTF-8">
+    // https://gist.github.com/lovasoa/11357947
+    function byteLength(str) {
+      // returns the byte length of a utf8 string
+      var s = str.length;
+      for (var i=str.length-1; i>=0; i--) {
+        var code = str.charCodeAt(i);
+        if (code > 0x7f && code <= 0x7ff) s++;
+        else if (code > 0x7ff && code <= 0xffff) s+=2;
+        if (code >= 0xDC00 && code <= 0xDFFF) i--; // trail surrogate
+      }
+      return s;
+    }
+
+    // https://www.freecodecamp.org/news/three-ways-to-title-case-a-sentence-in-javascript-676a9175eb27/
+    function TitleCase(str) {
+      return Capitalizelines(str).split(' ').map(function(word) {
+        return (word.charAt(0).toUpperCase() + word.slice(1));
+      }).join(' ');
+    }
+
+    // https://masteringjs.io/tutorials/fundamentals/capitalize-first-letter
+    function Capitalizelines(str) {
+      var lines = str.split(/\r\n|\n\r|\n|\r/);
+      var lines_Capitalized = '';
+      lines.forEach(function(line){
+        lines_Capitalized = lines_Capitalized + "\r" + line.charAt(0).toUpperCase() + line.slice(1);
+      });
+      return lines_Capitalized.slice(1);
+    }
+
+    // https://stackoverflow.com/a/18250883/2846918
+    function getCombinations (arr, n) {
+      var i, j, k, elem, l = arr.length, childperm, ret = [];
+      if (n == 1){
+        for (i = 0; i < arr.length; i++) {
+          for (j = 0; j < arr[i].length; j++) {
+            ret.push([arr[i][j]]);
+          }
+        }
+        return ret;
+      } else {
+        for (i = 0; i < l; i++) {
+          elem = arr.shift();
+          for (j = 0; j < elem.length; j++) {
+            childperm = getCombinations(arr.slice(), n-1);
+            for (k = 0; k < childperm.length; k++) {
+              ret.push([elem[j]].concat(childperm[k]));
+            }
+          }
+        }
+        return ret;
+      }
+    }
+
+    // https://stackoverflow.com/a/6274398/2846918
+    function shuffle(array) {
+      let counter = array.length;
+
+      // While there are elements in the array
+      while (counter > 0) {
+        // Pick a random index
+        let index = Math.floor(Math.random() * counter);
+
+        // Decrease counter by 1
+        counter--;
+
+        // And swap the last element with it
+        let temp = array[counter];
+        array[counter] = array[index];
+        array[index] = temp;
+      }
+
+      return array;
+    }
+
+    function evaluatePoem(text, minimum_rarity) {
+      let textBytes = byteLength(text);
+      if (textBytes > 64) return;
+      
+      let textHash = sha256(text);
+      
+      let foundRarity = false;
+      let bestFoundRarity;
+      for (let i = 0; i < RARITIES.length; i++) {
+        let rarity = RARITIES[i];
+        if (textHash.includes(rarity[0])) {
+          foundRarity = true;
+          bestFoundRarity = rarity;
+        } else {
+          break;
+        }
+      }
+
+      if (foundRarity) { // We got ourselves an amulet!
+        // Check that the amulet is rare enough
+        if (bestFoundRarity[0].includes(minimum_rarity)) {
+          if (!alreadyPlayedSoundForPoem[textHash]) {
+            // Display the amulet
+            var amulet_hash = textHash.replace(bestFoundRarity[0], `<span class="lucky">${bestFoundRarity[0]}</span>`);
+            var amulet_rarity = `This is ${bestFoundRarity[1]} amulet!`;
+            var amulet_html = '<div class="amulet rarity-' + bestFoundRarity[0] + '"><div><pre>' + text + '</pre></div><p class="amulet-hash">' + amulet_hash + '</p><p class="amulet-rarity"><small>' + amulet_rarity + '</small></p></div>';
+            document.querySelector('.amulets').insertAdjacentHTML('afterbegin', amulet_html);
+
+            // Play the sound
+            successSounds[soundPlayCount % 3].play();
+            soundPlayCount += 1;
+            alreadyPlayedSoundForPoem[textHash] = true;
+          }
+        }
+      }
+    }
+
+    const RARITIES = [["8888", "a common"],
+                      ["88888", "an uncommon"],
+                      ["888888", "a rare"],
+                      ["8888888", "an epic"],
+                      ["88888888", "a legendary"],
+                      ["888888888", "a mythic"],
+                      ["8888888888", "a beyond mythic"],
+                      ["88888888888", "a beyond mythic"],
+                      ["888888888888", "a beyond mythic"],
+                      ["8888888888888", "a beyond mythic"],
+                      ["88888888888888", "a beyond mythic"],
+                      ["888888888888888", "a beyond mythic"]]
+
+    // Encode the mp3 sound, so that we can keep the entire app in one file
+    const COIN_MP3 = 'data:audio/mpeg;base64,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';
+    var alreadyPlayedSoundForPoem = {};
+    var soundPlayCount = 0;
+    var successSounds = [new Audio(COIN_MP3),
+                         new Audio(COIN_MP3),
+                         new Audio(COIN_MP3)];
+    
+    var inputField = document.querySelector('.original');
+    var raritySelector = document.querySelector('.rarities');
+    
+    // Create a thesaurus object to cache API queries
+    var thesaurus = new Object;
+
+    document.addEventListener("DOMContentLoaded", e => {
+      if (inputField) {
+        inputField.addEventListener("input", e => {
+
+          // Find synonyms of each adjective, noun and verb
+          var allSynonyms = new Object;
+          var inputWordsOriginal = inputField.value;
+          var inputWords = inputField.value.split(/[\s:\.,;!?/\\]+/); // Split by whitespace and punctuation (we will refer to inputWordsOriginal to recreate the original whitespace and punctuation at the end)
+          var thesaurus_promises = [];
+          inputWords.forEach(function(word, i) {
+            
+            if (word == '') {
+              // That's not a word
+              return;
+            }
+
+            if (thesaurus[word] == 'NO SYNONYMS FOUND') {
+              // We already fetched this word and it had no synonyms
+              allSynonyms[word] = null;
+            } else if (word.length <= 2) {
+              // Don't look up one- and two-letter words
+              allSynonyms[word] = null;
+            } else if (thesaurus[word] == null) {
+              // We haven't fetched this word from the API yet; go ahead and get it
+              thesaurus_promises.push(
+                fetch('https://www.dictionaryapi.com/api/v3/references/thesaurus/json/'+ word +'?key=e0e7e809-c119-4352-8e17-7e359700007a')
+                .then(function(response){
+                  if (response.ok) {
+                    return response.json();
+                  } else {
+                    return null;
+                  }
+                })
+                .then(function(json_response) {
+                  if (json_response) {
+                    var json_word = json_response[0];
+                    if (json_word && (json_word.fl == 'adjective' || json_word.fl == 'noun' || json_word.fl == 'verb')) {
+                      var synonyms = json_word.meta.syns;
+                      if (synonyms) {
+                        // Limit to 5 synonyms, otherwise it's too slow 
+                        synonyms = shuffle(synonyms[0]).slice(0,5);
+                      }
+                      allSynonyms[word] = synonyms;
+                      thesaurus[word] = synonyms;
+                    } else {
+                      allSynonyms[word] = null;
+                      thesaurus[word] = 'NO SYNONYMS FOUND';
+                    }
+                  }
+                })
+              );
+            } else {
+              // We already fetched this word and it had some synonyms
+              allSynonyms[word] = thesaurus[word];
+            }
+          });
+
+          // Wait until all promises are finished (i.e. until all the synonyms have been fetched)
+          Promise.all(thesaurus_promises).then(function() {
+            
+            // Convert input to "slots". (Slots, as in slot machine. Each word in the sentence is a slot in a slot machine, with several synonym options.
+            var slots = [];
+            inputWords.forEach(function(word){
+              var new_words = [word];
+              if (allSynonyms[word]) {
+                new_words.push(...allSynonyms[word]);
+              }
+              slots.push(new_words);
+            });
+
+            // The first poem is the exact one that was inputted
+            var poems = [inputWordsOriginal];
+
+            // Create all synonym variations of the original poem
+            var combinations = getCombinations(slots, slots.length);
+            combinations.forEach(function(words){
+              var new_poem = inputWordsOriginal;
+              words.forEach(function(word, i){
+                // I would really like to use RegExp here to detect word boundaries, but it's too slow
+                // So I'm only replacing words that have a space on either side
+                // This isn't terribly accurate, the sentence "he headed out" could turn into "man manaded out"
+                new_poem = new_poem.replace(inputWords[i] + ' ', word + ' ');
+                new_poem = new_poem.replace(' ' + inputWords[i], ' ' + word);
+              });
+              poems.push(new_poem);
+            });
+
+            // Create four capitalisation variations for every poem
+            poems.forEach(function(poem){
+              poems.push(poem.toLowerCase()); // e.e. cummings
+              poems.push(poem.toUpperCase()); // NOT_A_WOLF
+              poems.push(TitleCase(poem)); // Jaden Smith
+              poems.push(Capitalizelines(poem)); // First letter of each line
+            });
+
+            // Show the original poem's hash and bytes
+            document.querySelector('.hash-original').innerHTML = sha256(inputWordsOriginal);
+            var textBytes = byteLength(inputWordsOriginal);
+            document.querySelector('.bytes-original').innerHTML = `(${textBytes} bytes)`;
+            if (textBytes > 64) {
+              document.querySelector('.hash-original').innerHTML = "***"
+              document.querySelector('.bytes-original').innerHTML = "This is too long to be an amulet.";
+            }
+
+            // Indicate total number of poems
+            document.querySelector('.count').innerHTML = poems.length.toLocaleString();
+
+            // Find the minimum selected rarity
+            var rarity_selector = document.querySelector('.rarities');
+            var minimum_rarity = rarity_selector.value;
+            if (minimum_rarity == null) {
+              minimum_rarity = '8888';
+            }
+
+            // Find those amulets!
+            poems.forEach(function(poem) {
+              evaluatePoem(poem, minimum_rarity);
+            });
+          });
+        });
+      }
+
+      if (raritySelector) {
+        raritySelector.addEventListener('change', function(e){
+          var rarity = e.target.value;
+          var amulets = document.querySelectorAll('.amulet');
+          amulets.forEach(function(amulet){
+            if (amulet.className.includes(rarity)) {
+              amulet.style.display = 'block';
+            } else {
+              amulet.style.display = 'none';
+            }
+          });
+        });
+      }
+    });
+  </script>
+
+</body>
+</html>
