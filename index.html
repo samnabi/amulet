@@ -348,8 +348,8 @@
                 })
                 .then(function(synonyms) {
                   if (synonyms) {
-                    // Limit to 5 synonyms, otherwise it's too slow
-                    synonyms = shuffle(synonyms).slice(0,5);
+                    // Limit to 10 synonyms, otherwise it's too slow
+                    synonyms = shuffle(synonyms).slice(0,10);
                     allSynonyms[word] = synonyms;
                     thesaurus[word] = synonyms;
                   } else {
