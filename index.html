@@ -99,6 +99,31 @@
     summary {
       cursor: help;
     }
+
+    .loading {
+      display: inline-block;
+      overflow: hidden;
+      height: 1.3em;
+      margin-top: -0.3em;
+      line-height: 1.5em;
+      vertical-align: text-bottom;
+    }
+
+    /* https://maxbeier.github.io/text-spinners/spinners.css */
+    .loading {
+      display: none; /* Only show when searching */
+    }
+    .loading::after {
+      display: inline-table;
+      white-space: pre;
+      text-align: left;
+    }
+    .loading::after {
+      content: "⋮\A⋰\A⋯\A⋱";
+      text-align: center;
+      animation: spin4 1s steps(4) infinite;
+    }
+    @keyframes spin4  { to { transform: translateY( -6.0em); } }
   </style>
 </head>
 <body>
@@ -127,7 +152,10 @@
     <textarea class="original" placeholder="Type your poem here."></textarea>
     <p class="hash-original"></p>
     <p class="bytes-original"></p>
-    <p><small>Found <span class="count">0</span> similar poems in the multiverse.</small></p>
+    <p>
+      <span class="loading" aria-hidden="true" role="progressbar"></span>
+      <small>Found <span class="count">0</span> similar poems in the multiverse.</small>
+    </p>
 
     <p>
       <label>
@@ -309,6 +337,9 @@
       if (inputField) {
         inputField.addEventListener("input", debounce(function(e) {
 
+          // Show the loader
+          document.querySelector('.loading').style.display = 'inline-block';
+
           // Trim empty newlines from the beginning and end.
           // They cause confusion because an empty newline will not show up in HTML, but it does affect the poem's hash value
           var inputWordsOriginal = inputField.value.replace(/^[\n\r]+|[\n\r]+$/g, '');
@@ -426,6 +457,9 @@
             poems.forEach(function(poem) {
               evaluatePoem(poem, minimum_rarity);
             });
+
+            // Hide the loader
+            document.querySelector('.loading').style.display = 'none';
           });
         }, 500)); // This will only run once you've stopped typing for 500ms
       }
