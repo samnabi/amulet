@@ -222,7 +222,24 @@
       return array;
     }
 
+    // https://davidwalsh.name/javascript-debounce-function
+    function debounce(func, wait, immediate) {
+      var timeout;
+      return function() {
+        var context = this, args = arguments;
+        var later = function() {
+          timeout = null;
+          if (!immediate) func.apply(context, args);
+        };
+        var callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+        if (callNow) func.apply(context, args);
+      };
+    };
+
     function evaluatePoem(text, minimum_rarity) {
+
       let textBytes = byteLength(text);
       if (textBytes > 64) return;
       
@@ -287,18 +304,28 @@
     var thesaurus = new Object;
 
     document.addEventListener("DOMContentLoaded", e => {
+      
+      // Find amulets based on input
       if (inputField) {
-        inputField.addEventListener("input", e => {
+        inputField.addEventListener("input", debounce(function(e) {
 
-          // Find synonyms of each adjective, noun and verb
+          // Trim empty newlines from the beginning and end.
+          // They cause confusion because an empty newline will not show up in HTML, but it does affect the poem's hash value
+          var inputWordsOriginal = inputField.value.replace(/^[\n\r]+|[\n\r]+$/g, '');
+
+          // Initialize our synonyms object and the array of promises (we will check the thesaurus_promises later to make sure we've received responses from the thesaurus for all the words)
           var allSynonyms = new Object;
-          var inputWordsOriginal = inputField.value;
-          var inputWords = inputField.value.split(/[\s:\.,;!?/\\]+/); // Split by whitespace and punctuation (we will refer to inputWordsOriginal to recreate the original whitespace and punctuation at the end)
           var thesaurus_promises = [];
+
+          // Split by whitespace and punctuation
+          // (we will refer to inputWordsOriginal to recreate the original whitespace and punctuation at the end)
+          var inputWords = inputField.value.split(/[\s:\.,;!?/\\]+/);
+
+          // Fetch those synonyms
           inputWords.forEach(function(word, i) {
             
             if (word == '') {
-              // That's not a word
+              // Don't look up blank strings
               return;
             }
 
@@ -311,7 +338,7 @@
             } else if (thesaurus[word] == null) {
               // We haven't fetched this word from the API yet; go ahead and get it
               thesaurus_promises.push(
-                fetch('https://www.dictionaryapi.com/api/v3/references/thesaurus/json/'+ word +'?key=e0e7e809-c119-4352-8e17-7e359700007a')
+                fetch('find-synonyms.php?q=' + word)
                 .then(function(response){
                   if (response.ok) {
                     return response.json();
@@ -319,21 +346,15 @@
                     return null;
                   }
                 })
-                .then(function(json_response) {
-                  if (json_response) {
-                    var json_word = json_response[0];
-                    if (json_word && (json_word.fl == 'adjective' || json_word.fl == 'noun' || json_word.fl == 'verb')) {
-                      var synonyms = json_word.meta.syns;
-                      if (synonyms) {
-                        // Limit to 5 synonyms, otherwise it's too slow 
-                        synonyms = shuffle(synonyms[0]).slice(0,5);
-                      }
-                      allSynonyms[word] = synonyms;
-                      thesaurus[word] = synonyms;
-                    } else {
-                      allSynonyms[word] = null;
-                      thesaurus[word] = 'NO SYNONYMS FOUND';
-                    }
+                .then(function(synonyms) {
+                  if (synonyms) {
+                    // Limit to 5 synonyms, otherwise it's too slow
+                    synonyms = shuffle(synonyms).slice(0,5);
+                    allSynonyms[word] = synonyms;
+                    thesaurus[word] = synonyms;
+                  } else {
+                    allSynonyms[word] = null;
+                    thesaurus[word] = 'NO SYNONYMS FOUND';
                   }
                 })
               );
@@ -346,7 +367,8 @@
           // Wait until all promises are finished (i.e. until all the synonyms have been fetched)
           Promise.all(thesaurus_promises).then(function() {
             
-            // Convert input to "slots". (Slots, as in slot machine. Each word in the sentence is a slot in a slot machine, with several synonym options.
+            // Convert input to "slots".
+            // (Slots, as in slot machine. Each word in the sentence is a slot in a slot machine, with several synonym options.)
             var slots = [];
             inputWords.forEach(function(word){
               var new_words = [word];
@@ -405,9 +427,10 @@
               evaluatePoem(poem, minimum_rarity);
             });
           });
-        });
+        }, 500)); // This will only run once you've stopped typing for 500ms
       }
 
+      // Filter amulets by rarity
       if (raritySelector) {
         raritySelector.addEventListener('change', function(e){
           var rarity = e.target.value;
