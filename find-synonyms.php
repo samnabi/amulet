@@ -17,7 +17,7 @@ if (file_exists($filepath)) {
   $response_array = json_decode($response);
   if (is_array($response_array)) {
     $thesaurus_word = $response_array[0];
-    if (is_object($thesaurus_word) and in_array($thesaurus_word->fl, ['adjective', 'noun', 'verb'])) {
+    if (is_object($thesaurus_word) and in_array($thesaurus_word->fl, ['adjective', 'noun'])) {
       $synonyms = json_encode($thesaurus_word->meta->syns[0], JSON_PRETTY_PRINT);
     }
   }
