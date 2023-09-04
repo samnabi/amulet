@@ -75,6 +75,9 @@
     .amulet {
       border-top: 1px solid lightgrey;
       padding-top: 1em;
+      display: grid;
+      grid-template-columns: 9em auto;
+      grid-template-rows: auto;
     }
 
     .amulet pre {
@@ -124,6 +127,43 @@
       animation: spin4 1s steps(4) infinite;
     }
     @keyframes spin4  { to { transform: translateY( -6.0em); } }
+
+    .gol {
+      display: inline-block;
+      background-color: #EFEFEF;
+      border-radius: 0.375em;
+      line-height: 0;
+      font-size: 0.5em;
+    }
+    .gol span {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      border-radius: 0.4em;
+    }
+    .alive {
+      background-color: black;
+    }
+
+    .gol + button {
+      display: block;
+      background: transparent;
+      border: none;
+      padding: 0.25em;
+      opacity: 0.8;
+      transition: transform 0.1s ease-out;
+    }
+    .gol + button svg {
+      fill: darkgrey;
+    }
+    .gol + button:hover,
+    .gol + button:focus {
+      opacity: 1;
+    }
+    .gol + button:active {
+      opacity: 0.8;
+      transform: rotate(-30deg);
+    }
   </style>
 </head>
 <body>
@@ -131,6 +171,10 @@
   <header>
     <p>Amulet scratchpad (multiverse edition) </p>
     <p><small>Adapted from <a href="https://text.bargains/scratchpad">Robin Sloan's scratchpad</a> by <a target="_blank" href="https://samnabi.com">Sam Nabi</a>. By using this app you agree not to create NFTs of the amulets you make here.</small></p>
+    <hr>
+    <p><small><strong>June 2021:</strong> Next to each amulet, you'll see a graphic. The graphic is a version of <a href="https://gameoflife.pro/" target="_blank">Conway's Game of Life</a>, using the amulet's hash to create the initial pattern. The pattern mutates according to a simple set of rules. It may arrive at a stable pattern, or it might keep changing forever. Like amulets themselves, there's no way to reverse-engineer a particular pattern.</small></p>
+    <p><small>Let's call these graphical representations <em>talismans</em>. A talisman's pattern is a visual version of an amulet's text. We can look at how the talisman enhances or subverts the text, elevating the amulet to a new level.</small></p>
+
     <details>
       <summary>About</summary>
       
@@ -174,6 +218,7 @@
     <section class="amulets"></section>
   </main>
 
+  <script type="text/javascript" src="world.js"></script>
   <script type="text/javascript" charset="UTF-8">
     // https://gist.github.com/lovasoa/11357947
     function byteLength(str) {
@@ -292,13 +337,22 @@
             // Display the amulet
             var amulet_hash = textHash.replace(bestFoundRarity[0], `<span class="lucky">${bestFoundRarity[0]}</span>`);
             var amulet_rarity = `This is ${bestFoundRarity[1]} amulet!`;
-            var amulet_html = '<div class="amulet rarity-' + bestFoundRarity[0] + '"><div><pre>' + text + '</pre></div><p class="amulet-hash">' + amulet_hash + '</p><p class="amulet-rarity"><small>' + amulet_rarity + '</small></p></div>';
+            var amulet_html = '<div class="amulet amulet--' + textHash + ' rarity-' + bestFoundRarity[0] + '"><div class="gol-wrapper"><div class="gol"></div><button><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M13.5 2c-5.288 0-9.649 3.914-10.377 9h-3.123l4 5.917 4-5.917h-2.847c.711-3.972 4.174-7 8.347-7 4.687 0 8.5 3.813 8.5 8.5s-3.813 8.5-8.5 8.5c-3.015 0-5.662-1.583-7.171-3.957l-1.2 1.775c1.916 2.536 4.948 4.182 8.371 4.182 5.797 0 10.5-4.702 10.5-10.5s-4.703-10.5-10.5-10.5z"/></svg></button></div><div class="amulet--text"><div><pre>' + text + '</pre></div><p class="amulet-hash">' + amulet_hash + '</p><p class="amulet-rarity"><small>' + amulet_rarity + '</small></p></div></div>';
             document.querySelector('.amulets').insertAdjacentHTML('afterbegin', amulet_html);
 
             // Play the sound
             successSounds[soundPlayCount % 3].play();
             soundPlayCount += 1;
             alreadyPlayedSoundForPoem[textHash] = true;
+
+            // Run the game of life
+            Play.run(textHash, document.querySelector('.amulet--' + textHash + ' .gol'));
+
+            // Enable the restart button
+            document.querySelector('.amulet--' + textHash + ' .gol + button').addEventListener('click', function(event){
+              clearInterval(Play.intervals['amulet-' + textHash]);
+              Play.run(textHash, document.querySelector('.amulet--' + textHash + ' .gol'));
+            });
           }
         }
       }
@@ -317,7 +371,7 @@
                       ["88888888888888", "a beyond mythic"],
                       ["888888888888888", "a beyond mythic"]]
 
-    // Encode the mp3 sound, so that we can keep the entire app in one file
+    // Encode the mp3 sound into a string
     const COIN_MP3 = 'data:audio/mpeg;base64,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';
     var alreadyPlayedSoundForPoem = {};
     var soundPlayCount = 0;
